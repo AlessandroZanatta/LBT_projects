@@ -5,7 +5,7 @@ let rec eval env expr =
   match expr with
   | Eint n -> Int n
   | Ebool b -> Bool b
-  | Fun (x, body) -> Closure (x, body, env)
+  | Fun (args, body) -> Closure (args, body)
   | Den x -> Env.lookup env x
   | If (e1, e2, e3) -> (
       match eval env e1 with
@@ -26,10 +26,14 @@ let rec eval env expr =
       | Lesser, Int n1, Int n2 -> Bool (n1 < n2)
       | Greater, Int n1, Int n2 -> Bool (n1 > n2)
       | _ -> failwith "Invalid expression")
-  | Call (f, arg) -> (
+  | Call (f, args) -> (
       match eval env f with
-      | Closure (x, body, env) ->
-          let x_val = eval env arg in
-          eval (bind env (x, x_val)) body
+      | Closure (params, body) ->
+          if List.length args <> List.length params then
+            failwith "Mismatched number of arguments passed to function call"
+          else
+            let args_val = List.map (eval env) args in
+            eval (List.combine params args_val |> List.fold_left bind env) body
+            (* eval (bind env (x, x_val)) body *)
       | _ -> failwith "Call first argument is not a closure")
   | Execute _ -> failwith "Not implemented!"

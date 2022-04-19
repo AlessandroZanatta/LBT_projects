@@ -12,9 +12,9 @@ type exp =
   | Op of ops * exp * exp
   | If of exp * exp * exp
   | Let of ide * exp * exp
-  | Fun of ide * exp
-  | Call of exp * exp
+  | Fun of ide list * exp
+  | Call of exp * exp list
   | Execute of exp
 
 (* Runtime values are ints, booleans, and closures *)
-type value = Int of int | Bool of bool | Closure of (ide * exp * value Env.env)
+type value = Int of int | Bool of bool | Closure of (ide list * exp)
