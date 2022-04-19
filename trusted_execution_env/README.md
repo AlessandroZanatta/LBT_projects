@@ -33,7 +33,7 @@ and secure programming.
 
 The programming language and its trusted execution environment support free
 and flexible sharing of mobile code while enforcing the security policies at hand.
-Also assemblies of code and data from various providers satisfy all participants’
+Also assemblies of code and data from various providers satisfy all participants'
 security requirements.
 
 The trusted execution environment must include
@@ -42,7 +42,7 @@ The trusted execution environment must include
 - Run-time modules that provide facilities needed to control and enforce the security policies constraining access to local resources by mobile code.
 
 To handle code mobility, we assume that the language provides the primitive
-operator execute(e). The execute operator evaluates its argument expression (i.e.
+operator `execute(e)`. The execute operator evaluates its argument expression (i.e.
 the expression e has to be understood as the mobile code to be executed).
 
 For instance, the program:
@@ -101,13 +101,13 @@ The homework also includes an optional part briefly discussed below. Property-
 based testing (PBT) -- or automatic specification-based testing -- is a form of
 black-box testing where a software artifact is subjected to a large number of
 checks derived from formal statements of its intended behavioral properties. For
-example, if the program under test is a function f that takes a list of numbers as
+example, if the program under test is a function `f` that takes a list of numbers as
 its input and (hopefully) returns the same list in sorted order, then a reasonable
-specification of f might be sorted(f(oldlist)) permutation(f(oldlist),oldlist),
+specification of `f` might be `sorted(f(oldlist)) permutation(f(oldlist),oldlist)`,
 where sorted is a simple function that checks whether its input is ordered and
 permutation checks whether one of its argument lists is a permutation of the other.
-To test whether f satisfies this specification, we generate a large number of
-random input lists, apply f to each one, and check that sorted and permutation
+To test whether `f` satisfies this specification, we generate a large number of
+random input lists, apply `f` to each one, and check that sorted and permutation
 both yield true.
 
 PBT was popularized in the functional programming world by the QuickCheck
@@ -118,4 +118,4 @@ testing of the proposed Trusted Execution Environment.
 
 # Submissions Guidelines
 The assignment must be submitted no later than midnight of the day it is due.
-More instructions on the submission next week.l
+More instructions on the submission next week.
