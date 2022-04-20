@@ -1,3 +1,5 @@
+open Automaton
+
 let rec combine3 l1 l2 l3 =
   match (l1, l2, l3) with
   | [], [], [] -> []
@@ -5,8 +7,14 @@ let rec combine3 l1 l2 l3 =
   | _ -> failwith "Invalid combine3, mismatch of list lengths"
 
 let sprintf_openable text openable =
-  text
-  |> Printf.sprintf "%s %s"
-       (match openable with
-       | Ast.File f -> Printf.sprintf " '%s'" f
-       | Ast.Socket (addr, port) -> Printf.sprintf " '%s' %d" addr port)
+  (match openable with
+  | Ast.File f -> Printf.sprintf " '%s'" f
+  | Ast.Socket (addr, port) -> Printf.sprintf " '%s' %d" addr port)
+  |> Printf.sprintf "%s%s" text
+
+let copy_automaton automaton =
+  ref
+    {
+      transition = automaton.transition;
+      current_state = automaton.current_state;
+    }

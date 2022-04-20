@@ -6,8 +6,8 @@ open Env
  * The sandbox policy is the policy that we want to enforce when executing mobile code.
  *)
 type policy = {
-  active : Automata.security_automata ref option;
-  sandbox : Automata.security_automata ref;
+  active : Automaton.security_automaton ref option;
+  sandbox : Automaton.security_automaton ref;
 }
 
 let do_binop = function
@@ -63,23 +63,23 @@ let rec eval env (sec_aut : policy) expr =
       | Some _ -> eval { env with priv = [] } sec_aut code)
   | Open res -> (
       if Option.is_some sec_aut.active then
-        Option.get sec_aut.active |> Automata.transition (Automata.Open res);
+        Option.get sec_aut.active |> Automaton.transition (Automaton.Open res);
       (* Do open *)
       match res with
       | File f -> OFile f
       | Socket (addr, port) -> OSocket (addr, port))
   | Close res ->
       if Option.is_some sec_aut.active then
-        Option.get sec_aut.active |> Automata.transition (Automata.Close res);
+        Option.get sec_aut.active |> Automaton.transition (Automaton.Close res);
       (* Do close *)
       Bool true
   | Read res ->
       if Option.is_some sec_aut.active then
-        Option.get sec_aut.active |> Automata.transition (Automata.Read res);
+        Option.get sec_aut.active |> Automaton.transition (Automaton.Read res);
       (* Do read *)
       String (Utils.sprintf_openable "Read from" res)
   | Write res ->
       if Option.is_some sec_aut.active then
-        Option.get sec_aut.active |> Automata.transition (Automata.Write res);
+        Option.get sec_aut.active |> Automaton.transition (Automaton.Write res);
       (* Do write *)
       String (Utils.sprintf_openable "Wrote to" res)
