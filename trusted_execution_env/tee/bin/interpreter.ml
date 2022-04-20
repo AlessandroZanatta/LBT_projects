@@ -1,23 +1,32 @@
 open Ast
 open Env
 
-let rec eval env expr =
+(* 
+ * Policy used by the eval. The active policy is enforced (e.g. in an execute).
+ * The sandbox policy is the policy that we want to enforce when executing mobile code.
+ *)
+type policy = {
+  active : Automata.security_automata ref option;
+  sandbox : Automata.security_automata ref;
+}
+
+let rec eval env (sec_aut : policy) expr =
   match expr with
   | Eint n -> Int n
   | Ebool b -> Bool b
   | Fun (args, body) -> Closure (args, body)
   | Den x -> Env.lookup env x
   | If (e1, e2, e3) -> (
-      match eval env e1 with
-      | Bool true -> eval env e2
-      | Bool false -> eval env e3
+      match eval env sec_aut e1 with
+      | Bool true -> eval env sec_aut e2
+      | Bool false -> eval env sec_aut e3
       | _ -> failwith "If guard must evaluate to a boolean")
-  | Let (id, e1, e2) ->
-      let v1 = eval env e1 in
-      eval (Env.bind env (id, v1)) e2
+  | Let (id, visibility, e1, e2) ->
+      let v1 = eval env sec_aut e1 in
+      eval (Env.bind env (id, visibility, v1)) sec_aut e2
   | Op (op, e1, e2) -> (
-      let e1 = eval env e1 in
-      let e2 = eval env e2 in
+      let e1 = eval env sec_aut e1 in
+      let e2 = eval env sec_aut e2 in
       match (op, e1, e2) with
       | Sum, Int n1, Int n2 -> Int (n1 + n2)
       | Times, Int n1, Int n2 -> Int (n1 * n2)
@@ -27,13 +36,45 @@ let rec eval env expr =
       | Greater, Int n1, Int n2 -> Bool (n1 > n2)
       | _ -> failwith "Invalid expression")
   | Call (f, args) -> (
-      match eval env f with
+      match eval env sec_aut f with
       | Closure (params, body) ->
           if List.length args <> List.length params then
             failwith "Mismatched number of arguments passed to function call"
           else
-            let args_val = List.map (eval env) args in
-            eval (List.combine params args_val |> List.fold_left bind env) body
-            (* eval (bind env (x, x_val)) body *)
+            let args_val = List.map (eval env sec_aut) args in
+            eval
+              (Utils.combine3 params
+                 (List.init (List.length args) (fun _ -> Ast.Private))
+                 args_val
+              |> List.fold_left bind env)
+              sec_aut body
       | _ -> failwith "Call first argument is not a closure")
-  | Execute _ -> failwith "Not implemented!"
+  | Execute code -> (
+      match sec_aut.active with
+      (* There is no active policy, therefore we execute the code with the policy used for mobile code *)
+      | None ->
+          eval { env with priv = [] }
+            { sec_aut with active = Some sec_aut.sandbox }
+            code
+      (* There is already an active policy (i.e. the mobile code called other mobile code). We want to keep enforcing the same policy continuing from the current state *)
+      | Some automata -> eval { env with priv = [] } sec_aut code)
+  | Open res ->
+      if Option.is_some sec_aut.active then
+        Option.get sec_aut.active |> Automata.transition (Automata.Open res);
+      (* Do open *)
+      Int 0
+  | Close res ->
+      if Option.is_some sec_aut.active then
+        Option.get sec_aut.active |> Automata.transition (Automata.Close res);
+      (* Do close *)
+      Int 0
+  | Read res ->
+      if Option.is_some sec_aut.active then
+        Option.get sec_aut.active |> Automata.transition (Automata.Read res);
+      (* Do read *)
+      Int 0
+  | Write res ->
+      if Option.is_some sec_aut.active then
+        Option.get sec_aut.active |> Automata.transition (Automata.Write res);
+      (* Do write *)
+      Int 0
