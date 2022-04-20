@@ -27,4 +27,10 @@ type exp =
   | Write of openable
 
 (* Runtime values are ints, booleans, and closures *)
-type value = Int of int | Bool of bool | Closure of (ide list * exp)
+type value =
+  | Int of int
+  | Bool of bool
+  | Closure of (ide list * exp)
+  | OFile of string
+  | OSocket of string * int
+  | String of string
