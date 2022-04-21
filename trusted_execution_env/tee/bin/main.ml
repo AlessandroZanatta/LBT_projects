@@ -9,33 +9,33 @@ open Interpreter
 (* Only a single file can be open at a time *)
 let only_one_open =
   (function
-    | Automaton.State "zero_open", Automaton.Open _ ->
+    | Automaton.State "zero_open", Automaton.EOpen _ ->
         Automaton.State "one_open"
-    | Automaton.State "one_open", Automaton.Close _ ->
+    | Automaton.State "one_open", Automaton.EClose _ ->
         Automaton.State "zero_open"
     | _ -> Automaton.Failure)
   |> Automaton.init_automaton (Automaton.State "zero_open")
 
 let can_only_open_file_txt =
   (function
-    | Automaton.State "closed", Automaton.Open (File "file.txt") ->
+    | Automaton.State "closed", Automaton.EOpen (File "file.txt") ->
         Automaton.State "opened"
-    | Automaton.State "opened", Automaton.Close (File "file.txt") ->
+    | Automaton.State "opened", Automaton.EClose (File "file.txt") ->
         Automaton.State "closed"
-    | Automaton.State "opened", Automaton.Read (File "file.txt") ->
+    | Automaton.State "opened", Automaton.ERead (File "file.txt") ->
         Automaton.State "opened"
-    | Automaton.State "opened", Automaton.Write (File "file.txt") ->
+    | Automaton.State "opened", Automaton.EWrite (File "file.txt") ->
         Automaton.State "opened"
     | _ -> Failure)
   |> Automaton.init_automaton (Automaton.State "closed")
 
 let no_send_after_read =
   (function
-    | Automaton.State "comm", Automaton.Write (Socket (_, _)) ->
+    | Automaton.State "comm", Automaton.EWrite (Socket (_, _)) ->
         Automaton.State "comm"
-    | Automaton.State "comm", Automaton.Read (Socket (_, _)) ->
+    | Automaton.State "comm", Automaton.ERead (Socket (_, _)) ->
         Automaton.State "comm"
-    | Automaton.State "comm", Automaton.Read (File _) ->
+    | Automaton.State "comm", Automaton.ERead (File _) ->
         Automaton.State "reading"
     | _ -> Failure)
   |> Automaton.init_automaton (Automaton.State "comm")

@@ -3,10 +3,10 @@ type state = State of string | Failure
 
 (* Possible security events relevant for the automaton *)
 type security_event =
-  | Open of Ast.openable
-  | Close of Ast.openable
-  | Read of Ast.openable
-  | Write of Ast.openable
+  | EOpen of Ast.openable
+  | EClose of Ast.openable
+  | ERead of Ast.openable
+  | EWrite of Ast.openable
 
 (* Security automaton definition *)
 type security_automaton = {
@@ -19,7 +19,7 @@ let init_automaton initial_state transition =
   { current_state = initial_state; transition }
 
 (* Transition of the security automaton *)
-let transition event (automaton : security_automaton ref) =
+let ( ==> ) (automaton : security_automaton ref) event =
   match !automaton.transition (!automaton.current_state, event) with
   | State new_state -> !automaton.current_state <- State new_state
   | Failure -> failwith "*** Violated security policy ***"

@@ -1,13 +1,14 @@
 open Ast
 open Env
+open Automaton
 
 (* 
  * Policy used by the eval. The active policy is enforced (e.g. in an execute).
  * The sandbox policy is the policy that we want to enforce when executing mobile code.
  *)
 type policy = {
-  active : Automaton.security_automaton ref option;
-  sandbox : Automaton.security_automaton ref;
+  active : security_automaton ref option;
+  sandbox : security_automaton ref;
 }
 
 (* Executes the given binary operation *)
@@ -33,8 +34,7 @@ let bind_function_arguments params args_val env =
  * Returns nothing, side-effect only
  *)
 let check_policy sec_aut sec_event =
-  if Option.is_some sec_aut.active then
-    Option.get sec_aut.active |> Automaton.transition sec_event
+  if Option.is_some sec_aut.active then Option.get sec_aut.active ==> sec_event
 
 let rec eval env (sec_aut : policy) expr =
   match expr with
@@ -97,20 +97,20 @@ let rec eval env (sec_aut : policy) expr =
    * Note: these operations are just stubs.
    *)
   | Open res -> (
-      Automaton.Open res |> check_policy sec_aut;
+      Automaton.EOpen res |> check_policy sec_aut;
       (* Do open *)
       match res with
       | File f -> OFile f
       | Socket (addr, port) -> OSocket (addr, port))
   | Close res ->
-      Automaton.Close res |> check_policy sec_aut;
+      Automaton.EClose res |> check_policy sec_aut;
       (* Do close *)
       Bool true
   | Read res ->
-      Automaton.Read res |> check_policy sec_aut;
+      Automaton.ERead res |> check_policy sec_aut;
       (* Do read *)
       String (Utils.sprintf_openable "Read from" res)
   | Write res ->
-      Automaton.Write res |> check_policy sec_aut;
+      Automaton.EWrite res |> check_policy sec_aut;
       (* Do write *)
       String (Utils.sprintf_openable "Wrote to" res)
