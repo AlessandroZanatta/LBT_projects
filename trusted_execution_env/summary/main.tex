@@ -1,0 +1,59 @@
+\documentclass[twoside,a4paper,11pt]{article}
+
+%% Packages 
+\usepackage[T1]{fontenc}
+\usepackage[pdftex]{hyperref}
+\usepackage{graphicx}               % Images
+\usepackage[top=3cm, bottom=3cm, left=3cm,right=2cm]{geometry}   % Margins
+\usepackage{titletoc}               % Table of contents
+\usepackage{authblk}                % Authors affiliations
+\usepackage{cleveref}               % Better references
+\usepackage{subcaption}             % Subfigures
+\usepackage{enumitem}               % Enumerates and itemizes control
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage[nottoc,notlot,notlof]{tocbibind}
+
+\newcommand{\email}[1]{\href{mailto:#1}{\footnotesize\texttt{#1}}} % Email
+\pagestyle{fancy}
+\fancyhead{}
+\fancyfoot[LE,RO]{\thepage}
+\cfoot{} % get rid of the page number
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+%% No spaces between items in a list
+\setlist{noitemsep}
+
+%% Table of contents formatting
+\dottedcontents{section}[25pt]{\addvspace{3pt}}{2.3em}{9.5pt}
+\dottedcontents{subsection}[50pt]{\addvspace{3pt}}{3.2em}{9.5pt}
+\setcounter{tocdepth}{3} % ToC max depth
+
+%% Add ./images to images path
+\graphicspath{{./images/}, {./logos/}}
+
+%% Title, author, university, course and year
+\def\thetitle{First Homework}
+\author[a]{Alessandro Zanatta} \affil[a]{matr. 647047 -- \email{a.zanatta1@studenti.unipi.it}}
+\author[b]{Gianmarco Pastore} \affil[b]{matr. 646236 -- \email{g.pastore11@studenti.unipi.it}}
+\renewcommand\Affilfont{\small}
+\def\uni{University\\of Pisa} % University name
+\def\course{Language-based technologies} % Course name
+\def\ay{2021/22} % Academic year
+
+%% Start of document
+\begin{document}
+
+\pagenumbering{gobble}
+\input{titlesec}
+\tableofcontents
+\clearpage
+
+%% Add sections here by including them from the sections directory
+\pagenumbering{arabic}
+\input{./sections/00_introduction}\clearpage
+
+\bibliographystyle{plain}
+\bibliography{bibtex}
+\end{document}
