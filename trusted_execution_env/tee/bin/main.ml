@@ -2,6 +2,11 @@ open Ast
 open Env
 open Interpreter
 
+(********************)
+(* EXAMPLE POLICIES *)
+(********************)
+
+(* Only a single file can be open at a time *)
 let only_one_open =
   (function
     | Automaton.State "zero_open", Automaton.Open _ ->
@@ -35,7 +40,10 @@ let no_send_after_read =
     | _ -> Failure)
   |> Automaton.init_automaton (Automaton.State "comm")
 
-let tests =
+(***********************************)
+(* EXAMPLES USING DEFINED POLICIES *)
+(***********************************)
+let examples =
   [
     ( only_one_open,
       [
@@ -133,8 +141,11 @@ let tests =
       ] );
   ]
 
-let rec execute_test_for_policy (policy, tests) =
-  match tests with
+(****************)
+(* RUN EXAMPLES *)
+(****************)
+let rec execute_examples_for_policy (policy, examples) =
+  match examples with
   | [] -> ()
   | (title, code) :: t ->
       let res =
@@ -153,14 +164,14 @@ let rec execute_test_for_policy (policy, tests) =
           |> Printf.sprintf "\027[0;32m%s\027[0m"
         with Failure x -> Printf.sprintf "\027[31m%s\027[0m" x
       in
-      Printf.printf "Test: %s\nResult: %s\n\n" title res;
-      execute_test_for_policy (policy, t)
+      Printf.printf "Example: %s\nResult: %s\n\n" title res;
+      execute_examples_for_policy (policy, t)
 
-let rec execute_tests tests =
-  match tests with
+let rec execute_examples examples =
+  match examples with
   | [] -> ()
   | h :: t ->
-      execute_test_for_policy h;
-      execute_tests t
+      execute_examples_for_policy h;
+      execute_examples t
 
-let () = execute_tests tests
+let () = execute_examples examples

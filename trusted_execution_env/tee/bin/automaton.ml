@@ -1,4 +1,4 @@
-(* State of the automaton *)
+(* State of the automaton. Could also be modeled using an Option *)
 type state = State of string | Failure
 
 (* Possible security events relevant for the automaton *)

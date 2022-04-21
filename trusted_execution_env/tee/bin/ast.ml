@@ -25,8 +25,13 @@ type exp =
   | Close of openable
   | Read of openable
   | Write of openable
+(*
+ * Note: we do not support Send or Recv directly.
+ * Instead, we consider different types of objects on which Read and Write can be
+ * called on, including Sockets. Hence, a write on a socket corresponds to a Send operation.   
+ *)
 
-(* Runtime values are ints, booleans, and closures *)
+(* Runtime values are ints, booleans, closures, open files and sockets, and strings *)
 type value =
   | Int of int
   | Bool of bool
