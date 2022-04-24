@@ -19,8 +19,4 @@ let sprintf_openable text openable =
  * when running examples/tests
  *)
 let copy_automaton automaton =
-  ref
-    {
-      transition = automaton.transition;
-      current_state = automaton.current_state;
-    }
+  { transition = automaton.transition; current_state = automaton.current_state }

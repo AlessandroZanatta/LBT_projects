@@ -8,7 +8,7 @@ open Automaton
  *)
 type policy = {
   active : security_automaton ref option;
-  sandbox : security_automaton ref;
+  sandbox : security_automaton;
 }
 
 (* Executes the given binary operation *)
@@ -89,9 +89,16 @@ let rec eval env (sec_aut : policy) expr =
        *)
       | None ->
           eval { env with priv = [] }
-            { sec_aut with active = Some sec_aut.sandbox }
+            {
+              sec_aut with
+              (* 
+               * We copy the automata, as different execute in the "top-level"
+               * code are enforced separately
+               *)
+              active = Some (Utils.copy_automaton sec_aut.sandbox |> ref);
+            }
             code
-      (* 
+      (*
        * There is already an active policy (i.e. the mobile code called other mobile code). 
        * We want to keep enforcing the same policy continuing from the current state.
        * This is needed to prevent bypasses of the policy by calling nested mobile codes.
