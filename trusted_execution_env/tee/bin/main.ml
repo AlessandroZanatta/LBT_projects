@@ -47,6 +47,8 @@ let examples =
   [
     ( only_one_open,
       [
+        ( "Anonymous functions work.\nExpected: 4",
+          Call (Fun ([ "x" ], Op (Sum, Den "x", Eint 1)), [ Eint 3 ]) );
         ( "Using public function in mobile code.\nExpected: 1",
           Let
             ("myfun", Public, Fun ([], Eint 1), Execute (Call (Den "myfun", [])))
