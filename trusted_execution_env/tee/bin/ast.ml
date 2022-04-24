@@ -2,7 +2,7 @@
 type ide = string
 
 (* Type declaration for operations on integers *)
-type ops = Sum | Times | Minus | Equal | Lesser | Greater
+type ops = Sum | Times | Minus | Div | Mod | Equal | Lesser | Greater | Lesseq | Greateq | Diff | Or | And 
 
 (* Openable resources *)
 type openable = File of string | Socket of string * int

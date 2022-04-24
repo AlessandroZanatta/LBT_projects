@@ -16,9 +16,16 @@ let do_binop = function
   | Sum, Int n1, Int n2 -> Int (n1 + n2)
   | Times, Int n1, Int n2 -> Int (n1 * n2)
   | Minus, Int n1, Int n2 -> Int (n1 - n2)
+  | Div, Int n1, Int n2 -> Int (n1 / n2)
+  | Mod, Int n1, Int n2 -> Int (n1 mod n2)
   | Equal, Int n1, Int n2 -> Bool (n1 = n2)
   | Lesser, Int n1, Int n2 -> Bool (n1 < n2)
   | Greater, Int n1, Int n2 -> Bool (n1 > n2)
+  | Lesseq, Int n1, Int n2 -> Bool (n1 <= n2)
+  | Greateq, Int n1, Int n2 -> Bool (n1 >= n2)
+  | Diff, Int n1, Int n2 -> Bool (n1 <> n2)
+  | Or, Bool b1, Bool b2 -> Bool (b1 || b2)
+  | And, Bool b1, Bool b2 -> Bool (b1 && b2)
   | _ -> failwith "Invalid expression"
 
 (* Binds the function arguments values to the corresponding parameters *)
