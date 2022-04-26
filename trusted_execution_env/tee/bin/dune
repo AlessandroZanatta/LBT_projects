@@ -1,4 +1,4 @@
 (executable
  (public_name tee)
  (name main)
- (libraries tee))
+ (libraries lib))

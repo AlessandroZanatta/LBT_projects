@@ -1,2 +1,2 @@
 (library
- (name tee))
+ (name lib))

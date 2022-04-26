@@ -1,6 +1,7 @@
-open Ast
-open Env
-open Interpreter
+open Lib
+open Lib.Ast
+open Lib.Env
+open Lib.Interpreter
 
 (********************)
 (* EXAMPLE POLICIES *)
