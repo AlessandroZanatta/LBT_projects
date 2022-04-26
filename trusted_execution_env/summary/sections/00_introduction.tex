@@ -1,5 +1,35 @@
-
 \section{Introduction}
+At the beginning of the homework, we decided to look up papers regarding the secure execution of mobile code. The most relevant one was \cite{history-based}, but we did not find it the best-suited approach to solve our problem.
 
-\cite{10.1145/353323.353382}
-\cite{erlingsson2000sasi}
+We have decided to use an approach seen in the lectures, security automata \cite{erlingsson2000sasi,10.1145/353323.353382}, and visibility specifiers.
+
+\section{Securing top-level code}
+To avoid the disclosure of ``secret'' variables and functions (i.e. code that we do not want the executed mobile code to be able to access) we have introduced visibility specifiers for identifiers.
+
+In particular, we have devised to use a \lstinline{Private} or \lstinline{Public} specifier when using the \lstinline{Let} construct. Notice that, while in the abstract syntax tree the specifier is always required, when parsing the program from file it would be possible to define every variable as \lstinline{Private} by default, following the least privilege principle.
+
+\subsection{Implementation}
+
+\paragraph{Modifications to run-time data structures}
+We split the environment (previously defined as a single list of identifier-value pairs) in two. This allows us to keep the list of private variables in a separate data structure from the list of public variables.
+
+Notice that we assume that functions parameters are private, and when searching for a binding we need to consider first the private part of the environment.
+
+\paragraph{Enforcement}
+The \lstinline{Let} construct, as aforementioned, contains a visibility specifier. This specifier is used to bind the identifier in the correct environment.
+To enforce the confidentiality of the private environment, in the \lstinline{Execute} calls, we empty the private environment so that it is impossible for the mobile code to access non-public variables.
+
+
+\section{Security policies enforcement}
+To enforce a wide range of security policies, we have devised to use security automata \cite{erlingsson2000sasi,10.1145/353323.353382}.
+
+\subsection{Implementation}
+The security automata have been reduced to two state variables: the current state, and the transition function. The state of the automata is either \lstinline{State string} or \lstinline{Failure}, where the latter is reached upon a security policy violation.
+
+We have then identified a set of security relevant operations. For instance, we consider as relevant actions: \lstinline{Open res}, \lstinline{Read res}, \lstinline{Write res}, and \lstinline{Close res} operations. Notice that the resource can either be a file or a socket, thus a \lstinline{Write Socket("<IP>", <port>)} has the same behavior of a \lstinline{Send} call.
+We also assumed that these operations are carried on correctly by the programmer (e.g. a socket is opened before writing to it). This assumption is coherent with the fact that we consider the operation from a semantic point of view, rather than from a functional perspective.
+
+Before a security event is executed, the automaton transitions to the new state. If the new state is the \lstinline{Failure} state, then we abort execution. Notice that to ensure that the automaton works correctly even with function calls it has been defined as a reference.
+
+The automaton is active only when executing mobile code. To this end, we created a simple data structure holding an active automaton and automaton to be used in the secure sandbox.
+We have also ensured that nested execute calls respect our policy. This allows to avoid attacks in which nested mobile code execution is abused to bypass the policy.
