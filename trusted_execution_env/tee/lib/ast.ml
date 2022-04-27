@@ -6,6 +6,7 @@ type 'e typ =
   | TBool
   | TInt
   | TString
+  (* We use a dummy type for closures type labels, and one for actual internal logic *)
   | TClosure
   | TClosure' of (ide * 'e typ) list * 'e typ * 'e * 'e typ Env.static_env
   | TOpeanable
@@ -34,10 +35,10 @@ type exp =
   | EInt of int
   | EBool of bool
   | EString of string
-  | Den of ide
+  | Den of ide * Env.visibility
   | Op of ops * exp * exp
   | If of exp * exp * exp
-  | Let of ide * exp typ * exp * exp
+  | Let of ide * exp typ * Env.visibility * exp * exp
   | Fun of (ide * exp typ) list * exp typ * exp
   | Call of exp * exp list
   | Execute of exp * exp typ

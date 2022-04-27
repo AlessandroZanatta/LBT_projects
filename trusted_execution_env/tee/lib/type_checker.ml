@@ -2,13 +2,6 @@ open Ast
 open Exception
 open Env
 
-let bind env (id, t) = (id, t) :: env
-
-let lookup env id =
-  match List.assoc_opt id env with
-  | Some t -> t
-  | None -> Printf.sprintf "Unbound variable: %s" id |> typecheck_error
-
 (* [typeof env e] is the type of [e] in the environment [env].
    That is, it is the [t] such that [env |- e : t].
    Raises: [TypecheckError] if no such [t] exists. *)
@@ -17,14 +10,14 @@ let rec typeof env = function
   | EBool _ -> TBool
   | EString _ -> TString
   | Fun (args, ret_type, body) -> TClosure' (args, ret_type, body, env)
-  | Den x -> lookup env x
+  | Den (x, vis) -> lookup env x vis
   | If (e1, e2, e3) -> typeof_if env e1 e2 e3
-  | Let (id, t, e1, e2) -> typeof_let env id t e1 e2
+  | Let (id, t, vis, e1, e2) -> typeof_let env id t vis e1 e2
   | Op (op, e1, e2) -> typeof_binop env op e1 e2
   | Call (f, args) -> typeof_call env f args
   | Execute (e, t) -> typeof_execute env e t
   | Open _ -> TOpeanable
-  | Close _ -> TOpeanable
+  | Close _ -> TBool
   | Read _ -> TString
   | Write _ -> TString
 
@@ -41,12 +34,12 @@ and typeof_if env e1 e2 e3 =
   else typecheck_error "If guard must evaluate to a Bool"
 
 (* [typeof_let env id t e1 e2] checks that:
-   - [env |- e1 : t'] and t = t'
+   - [env |- e1 : t'] and t = t' or (t = TClosure and t' = TClosure')
    and returns t2, where t2 is the result of [(id, t)::env |- e2 : t1].
    Raises: [TypecheckError] if the type of e1 mismatches with its *)
-and typeof_let env id t e1 e2 =
+and typeof_let env id t vis e1 e2 =
   let t' = typeof env e1 in
-  if t' = t || check_closure t t' then typeof (bind env (id, t')) e2
+  if t' = t || check_closure t t' then typeof (bind env (id, t', vis)) e2
   else typecheck_error "Let assignment typecheck failed"
 
 and check_closure t t' =
@@ -72,6 +65,11 @@ and typeof_binop env op e1 e2 =
   | And, TBool, TBool -> TBool
   | _ -> typecheck_error "Operator and operand typecheck failed"
 
+(* [typeof_call env f args] checks that:
+   - [env |- f : t] and t = TClosure'(...)
+   - parameters' types match arguments' types
+   - return type matches declared type
+   Raises: [TypecheckError] if above conditions are not respected. *)
 and typeof_call env f args =
   match typeof env f with
   | TClosure' (params, ret_type, body, fun_env) ->
@@ -79,7 +77,11 @@ and typeof_call env f args =
       let types = List.split params |> snd in
       let args_types = List.map (typeof env) args in
       if types = args_types then
-        let fun_env' = List.combine ides types |> List.fold_left bind fun_env in
+        let fun_env' =
+          Utils.combine3 ides types
+            (List.init (List.length ides) (fun _ -> Env.Private))
+          |> List.fold_left bind fun_env
+        in
         if typeof fun_env' body = ret_type then ret_type
         else typecheck_error "Function return value mismatch"
       else
@@ -87,6 +89,8 @@ and typeof_call env f args =
           "Function parameters definition and passed arguments type mismatch"
   | _ -> typecheck_error "Call first argument must be of type Closure"
 
+(* [typeof_execute env e t] checks that the return type of [e] matches [t].
+   Raises: [TypecheckError] if typecheck fails. *)
 and typeof_execute env e t =
   if typeof env e = t then t
   else typecheck_error "Execution of mobile code type mismatch"

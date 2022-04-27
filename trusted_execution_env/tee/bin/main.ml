@@ -56,12 +56,14 @@ let examples =
       [
         ( "Anonymous functions work",
           Call
-            (Fun ([ ("x", TInt) ], TInt, Op (Sum, Den "x", EInt 1)), [ EInt 3 ]),
+            ( Fun ([ ("x", TInt) ], TInt, Op (Sum, Den ("x", Private), EInt 1)),
+              [ EInt 3 ] ),
           Some (Int 4) );
         ( "Non-nested execute are enforced separately",
           Let
             ( "x",
               TOpeanable,
+              Private,
               Execute (Open (File "file1"), TOpeanable),
               Execute (Open (File "file2"), TOpeanable) ),
           Some (OFile "file2") );
@@ -69,23 +71,26 @@ let examples =
           Let
             ( "myfun",
               TClosure,
+              Public,
               Fun ([], TInt, EInt 1),
-              Execute (Call (Den "myfun", []), TInt) ),
+              Execute (Call (Den ("myfun", Public), []), TInt) ),
           Some (Int 1) );
         ( "Using private function in mobile code",
           Let
             ( "myfun",
               TClosure,
+              Private,
               Fun ([], TInt, EInt 1),
-              Execute (Call (Den "myfun", []), TInt) ),
+              Execute (Call (Den ("myfun", Private), []), TInt) ),
           None );
         ( "Using public function in nested mobile code",
           Execute
             ( Let
                 ( "myfun",
                   TClosure,
+                  Public,
                   Fun ([], TInt, EInt 1),
-                  Execute (Call (Den "myfun", []), TInt) ),
+                  Execute (Call (Den ("myfun", Public), []), TInt) ),
               TInt ),
           Some (Int 1) );
         ( "Using private function in nested mobile code",
@@ -93,26 +98,35 @@ let examples =
             ( Let
                 ( "myfun",
                   TClosure,
+                  Private,
                   Fun ([], TInt, EInt 1),
-                  Execute (Call (Den "myfun", []), TInt) ),
+                  Execute (Call (Den ("myfun", Private), []), TInt) ),
               TInt ),
           None );
         ( "Double open in trusted code",
           Let
             ( "x",
               TClosure,
+              Private,
               Fun ([], TOpeanable, Open (File "file_1")),
-              Let ("y", TOpeanable, Call (Den "x", []), Open (File "file_1")) ),
+              Let
+                ( "y",
+                  TOpeanable,
+                  Private,
+                  Call (Den ("x", Private), []),
+                  Open (File "file_1") ) ),
           Some (OFile "file_1") );
         ( "Double open of sockets in trusted code",
           Let
             ( "x",
               TClosure,
+              Private,
               Fun ([], TOpeanable, Open (Socket ("127.0.0.1", 1234))),
               Let
                 ( "y",
                   TOpeanable,
-                  Call (Den "x", []),
+                  Private,
+                  Call (Den ("x", Private), []),
                   Open (Socket ("127.0.0.1", 1234)) ) ),
           Some (OSocket ("127.0.0.1", 1234)) );
         ( "Double open in mobile code",
@@ -120,16 +134,22 @@ let examples =
             ( Let
                 ( "x",
                   TClosure,
+                  Private,
                   Fun ([], TOpeanable, Open (File "file_1")),
-                  Let ("y", TOpeanable, Call (Den "x", []), Open (File "file_1"))
-                ),
+                  Let
+                    ( "y",
+                      TOpeanable,
+                      Private,
+                      Call (Den ("x", Private), []),
+                      Open (File "file_1") ) ),
               TOpeanable ),
           None );
         ( "Double open in nested mobile code",
           Execute
             ( Let
-                ( "x",
+                ( "_",
                   TOpeanable,
+                  Private,
                   Open (File "file_1"),
                   Execute (Open (File "file_2"), TOpeanable) ),
               TOpeanable ),
@@ -141,12 +161,14 @@ let examples =
         ( "Open, read, write and close file.txt",
           Execute
             ( Let
-                ( "x",
+                ( "_",
                   TOpeanable,
+                  Private,
                   Open (File "file.txt"),
                   Let
                     ( "_",
                       TString,
+                      Private,
                       Write (File "file.txt"),
                       Read (File "file.txt") ) ),
               TString ),
@@ -162,6 +184,7 @@ let examples =
             ( Let
                 ( "_",
                   TString,
+                  Private,
                   Write (Socket ("localhost", 1234)),
                   Read (File "my_file") ),
               TString ),
@@ -171,10 +194,12 @@ let examples =
             ( Let
                 ( "_",
                   TString,
+                  Private,
                   Read (File "my_file"),
                   Write (Socket ("localhost", 1234)) ),
               TString ),
           None );
+        ("ciao", Op (Div, EInt 1, EInt 0), None);
       ] );
   ]
 

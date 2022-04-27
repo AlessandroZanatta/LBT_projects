@@ -26,28 +26,36 @@ let rec eval env sec_aut expr =
   | EBool b -> Bool b
   | EString x -> String x
   | Fun (args, _, body) -> Closure (args, body, env)
-  | Den x -> Env.lookup env x
+  | Den (x, visibility) -> Env.lookup env x visibility
   | If (e1, e2, e3) -> eval_if env sec_aut e1 e2 e3
-  | Let (id, _, e1, e2) -> eval_let env sec_aut id e1 e2
+  | Let (id, _, vis, e1, e2) -> eval_let env sec_aut id vis e1 e2
   | Op (op, e1, e2) -> eval_op env sec_aut op e1 e2
   | Call (f, args) -> eval_call env sec_aut f args
-  | Execute (e, _) -> eval_mobile_code env sec_aut e
+  | Execute (e, _) -> eval_execute env sec_aut e
   | Open res -> eval_open sec_aut res
   | Close res -> eval_close sec_aut res
   | Read res -> eval_read sec_aut res
   | Write res -> eval_write sec_aut res
 
+(* [eval_if env sec_aut e1 e2 e3] Evaluates [e1].
+   If true, returns the evalution of [e2], else the evaluation of [e3]
+   Raises: [RuntimeError] if [e1] does not evalute to a Bool *)
 and eval_if env sec_aut e1 e2 e3 =
   match eval env sec_aut e1 with
   | Bool true -> eval env sec_aut e2
   | Bool false -> eval env sec_aut e3
   | _ -> runtime_error "If guard must evaluate to a boolean"
 
-and eval_let env sec_aut id e1 e2 =
+(* [eval_let env sec_aut id vis e1 e2]
+   Evaluates [e1] and binds it to [id].
+   Then, executes [e2] in the new environment. *)
+and eval_let env sec_aut id vis e1 e2 =
   let v1 = eval env sec_aut e1 in
-  eval (Env.bind env (id, v1)) sec_aut e2
+  eval (Env.bind env (id, v1, vis)) sec_aut e2
 
-(* Evaluates the given binary operation *)
+(* [eval_op env sec_aut op e1 e2]
+   Evaluates [e1] and [e2] and applies the given binary operation.
+   Raises: [RuntimeError] if the operation is invalid or we have divided by zero. *)
 and eval_op env sec_aut op e1 e2 =
   let e1 = eval env sec_aut e1 in
   let e2 = eval env sec_aut e2 in
@@ -79,7 +87,10 @@ and eval_call env sec_aut f args =
       else
         let args_val = List.map (eval env sec_aut) args in
         eval
-          (List.combine (List.split params |> fst) args_val
+          (Utils.combine3
+             (List.split params |> fst)
+             args_val
+             (List.init (List.length args) (fun _ -> Env.Private))
           |> List.fold_left bind fun_env)
           sec_aut body
   | _ -> runtime_error "Call first argument is not a closure"
@@ -89,14 +100,14 @@ and eval_call env sec_aut f args =
  * The public enviroment is kept when evaluating the code, while the
  * private enviroment is emptied.
  *)
-and eval_mobile_code env sec_aut code =
+and eval_execute env sec_aut code =
   match sec_aut.active with
   (* 
    * There is no active policy, therefore we execute the code 
    * with the sandbox policy as active 
    *)
   | None ->
-      eval env
+      eval (retain_public env)
         {
           sec_aut with
           (* 
@@ -111,7 +122,7 @@ and eval_mobile_code env sec_aut code =
    * We want to keep enforcing the same policy continuing from the current state.
    * This is needed to prevent bypasses of the policy by calling nested mobile codes.
    *)
-  | Some _ -> eval env sec_aut code
+  | Some _ -> eval (retain_public env) sec_aut code
 
 (*
  * Open, close, read and write operations are considered security events.
