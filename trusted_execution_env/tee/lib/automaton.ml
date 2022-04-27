@@ -1,3 +1,5 @@
+open Exception
+
 (* State of the automaton. Could also be modeled using an Option *)
 type state = State of string | Failure
 
@@ -22,4 +24,4 @@ let init_automaton initial_state transition =
 let ( ==> ) (automaton : security_automaton ref) event =
   match !automaton.transition (!automaton.current_state, event) with
   | State new_state -> !automaton.current_state <- State new_state
-  | Failure -> failwith "*** Violated security policy ***"
+  | Failure -> runtime_error "Violated security policy!"

@@ -1,26 +1,46 @@
 (* Identifiers type declaration *)
 type ide = string
 
+(* Typechecking types definition *)
+type 'e typ =
+  | TBool
+  | TInt
+  | TString
+  | TClosure
+  | TClosure' of (ide * 'e typ) list * 'e typ * 'e * 'e typ Env.static_env
+  | TOpeanable
+
 (* Type declaration for operations on integers *)
-type ops = Sum | Times | Minus | Div | Mod | Equal | Lesser | Greater | Lesseq | Greateq | Diff | Or | And 
+type ops =
+  | Sum
+  | Times
+  | Minus
+  | Div
+  | Mod
+  | Equal
+  | Lesser
+  | Greater
+  | Lesseq
+  | Greateq
+  | Diff
+  | Or
+  | And
 
 (* Openable resources *)
 type openable = File of string | Socket of string * int
 
-(* Visibility of an identifier or function *)
-type visibility = Public | Private
-
 (* Supported expressions *)
 type exp =
-  | Eint of int
-  | Ebool of bool
+  | EInt of int
+  | EBool of bool
+  | EString of string
   | Den of ide
   | Op of ops * exp * exp
   | If of exp * exp * exp
-  | Let of ide * visibility * exp * exp
-  | Fun of ide list * exp
+  | Let of ide * exp typ * exp * exp
+  | Fun of (ide * exp typ) list * exp typ * exp
   | Call of exp * exp list
-  | Execute of exp
+  | Execute of exp * exp typ
   | Open of openable
   | Close of openable
   | Read of openable
@@ -35,7 +55,7 @@ type exp =
 type value =
   | Int of int
   | Bool of bool
-  | Closure of (ide list * exp)
+  | String of string
+  | Closure of ((ide * exp typ) list * exp * value Env.t)
   | OFile of string
   | OSocket of string * int
-  | String of string
