@@ -25,6 +25,7 @@ let rec eval env sec_aut expr =
   | EInt n -> Int n
   | EBool b -> Bool b
   | EString x -> String x
+  | EOpenable x -> eval_eopenable x
   | Fun (args, _, body) -> Closure (args, body, env)
   | Den (x, visibility) -> Env.lookup env x visibility
   | If (e1, e2, e3) -> eval_if env sec_aut e1 e2 e3
@@ -32,10 +33,14 @@ let rec eval env sec_aut expr =
   | Op (op, e1, e2) -> eval_op env sec_aut op e1 e2
   | Call (f, args) -> eval_call env sec_aut f args
   | Execute (e, _) -> eval_execute env sec_aut e
-  | Open res -> eval_open sec_aut res
-  | Close res -> eval_close sec_aut res
-  | Read res -> eval_read sec_aut res
-  | Write res -> eval_write sec_aut res
+  | Open res -> eval_open env sec_aut res
+  | Close res -> eval_close env sec_aut res
+  | Read res -> eval_read env sec_aut res
+  | Write (res, e) -> eval_write env sec_aut res e
+
+and eval_eopenable = function
+  | File (f, am) -> OFile (f, am)
+  | Socket (ip, port) -> OSocket (ip, port)
 
 (* [eval_if env sec_aut e1 e2 e3] Evaluates [e1].
    If true, returns the evalution of [e2], else the evaluation of [e3]
@@ -101,13 +106,14 @@ and eval_call env sec_aut f args =
  * private enviroment is emptied.
  *)
 and eval_execute env sec_aut code =
+  let execute_env = retain_public env in
   match sec_aut.active with
   (* 
    * There is no active policy, therefore we execute the code 
    * with the sandbox policy as active 
    *)
   | None ->
-      eval (retain_public env)
+      eval execute_env
         {
           sec_aut with
           (* 
@@ -122,7 +128,7 @@ and eval_execute env sec_aut code =
    * We want to keep enforcing the same policy continuing from the current state.
    * This is needed to prevent bypasses of the policy by calling nested mobile codes.
    *)
-  | Some _ -> eval (retain_public env) sec_aut code
+  | Some _ -> eval execute_env sec_aut code
 
 (*
  * Open, close, read and write operations are considered security events.
@@ -130,24 +136,56 @@ and eval_execute env sec_aut code =
  * of the automata leads to a valid state.
  * Note: these operations are just stubs.
  *)
-and eval_open sec_aut res =
+and eval_open env sec_aut res =
+  let value = eval env sec_aut res in
+  let res =
+    match value with
+    | OFile (f, am) -> File (f, am)
+    | OSocket (ip, port) -> Socket (ip, port)
+    | _ -> runtime_error "Can only open files or sockets"
+  in
   Automaton.EOpen res |> check_policy sec_aut;
   (* Do open *)
-  match res with
-  | File f -> OFile f
-  | Socket (addr, port) -> OSocket (addr, port)
+  value
 
-and eval_close sec_aut res =
+and eval_close env sec_aut res =
+  let res =
+    match eval env sec_aut res with
+    | OFile (f, am) -> File (f, am)
+    | OSocket (ip, port) -> Socket (ip, port)
+    | _ -> runtime_error "Can only close files or sockets"
+  in
   Automaton.EClose res |> check_policy sec_aut;
-  (* Do close *)
   Bool true
 
-and eval_read sec_aut res =
+and eval_read env sec_aut res =
+  let res =
+    match eval env sec_aut res with
+    | OFile (f, O_RDONLY) -> File (f, O_RDONLY)
+    | OFile (f, O_RDWR) -> File (f, O_RDWR)
+    | OSocket (ip, port) -> Socket (ip, port)
+    | _ ->
+        runtime_error
+          "Can only read from files or sockets or incorrect permissions"
+  in
   Automaton.ERead res |> check_policy sec_aut;
-  (* Do read *)
   String (Utils.sprintf_openable "Read from" res)
 
-and eval_write sec_aut res =
+and eval_write env sec_aut res e =
+  let res =
+    match eval env sec_aut res with
+    | OFile (f, O_WRONLY) -> File (f, O_WRONLY)
+    | OFile (f, O_RDWR) -> File (f, O_RDWR)
+    | OSocket (ip, port) -> Socket (ip, port)
+    | _ ->
+        runtime_error
+          "Can only write to files or sockets or incorrect permissions"
+  in
+  let content =
+    match eval env sec_aut e with
+    | String x -> x
+    | _ -> runtime_error "Can only write strings to files or sockets"
+  in
   Automaton.EWrite res |> check_policy sec_aut;
   (* Do write *)
-  String (Utils.sprintf_openable "Wrote to" res)
+  String (Utils.sprintf_openable (Printf.sprintf "Wrote '%s' to" content) res)

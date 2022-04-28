@@ -9,6 +9,7 @@ let rec typeof env = function
   | EInt _ -> TInt
   | EBool _ -> TBool
   | EString _ -> TString
+  | EOpenable _ -> TOpenable
   | Fun (args, ret_type, body) -> TClosure' (args, ret_type, body, env)
   | Den (x, vis) -> lookup env x vis
   | If (e1, e2, e3) -> typeof_if env e1 e2 e3
@@ -16,10 +17,10 @@ let rec typeof env = function
   | Op (op, e1, e2) -> typeof_binop env op e1 e2
   | Call (f, args) -> typeof_call env f args
   | Execute (e, t) -> typeof_execute env e t
-  | Open _ -> TOpeanable
-  | Close _ -> TBool
-  | Read _ -> TString
-  | Write _ -> TString
+  | Open res -> typeof_open env res
+  | Close res -> typeof_close env res
+  | Read res -> typeof_read env res
+  | Write (res, e) -> typeof_write env res e
 
 (* [typeof_if env e1 e2 e3] checks that:
    - [env |- e1 : t1] and t1 = TBool
@@ -94,6 +95,22 @@ and typeof_call env f args =
 and typeof_execute env e t =
   if typeof env e = t then t
   else typecheck_error "Execution of mobile code type mismatch"
+
+and typeof_open env res =
+  if typeof env res = TOpenable then TOpenable
+  else typecheck_error "Can only open a file or a socket"
+
+and typeof_close env res =
+  if typeof env res = TOpenable then TBool
+  else typecheck_error "Can only close a file or a socket"
+
+and typeof_read env res =
+  if typeof env res = TOpenable then TString
+  else typecheck_error "Can only read from a file or a socket"
+
+and typeof_write env res e =
+  if typeof env res = TOpenable && typeof env e = TString then TString
+  else typecheck_error "Can only write strings to a file or a socket "
 
 (* [typecheck e] is [e] if [e] typechecks, that is, if it exists a type [t]
    such that [{} |- e : t].

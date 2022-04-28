@@ -13,7 +13,12 @@ let rec combine3 l1 l2 l3 =
 (* Utility to print an opeanble object in a pretty way. *)
 let sprintf_openable text openable =
   (match openable with
-  | Ast.File f -> Printf.sprintf " '%s'" f
+  | Ast.File (f, access_mode) ->
+      (match access_mode with
+      | Ast.O_RDONLY -> "O_RDONLY"
+      | Ast.O_WRONLY -> "O_WRONLY"
+      | Ast.O_RDWR -> "O_RDWR")
+      |> Printf.sprintf " '%s' (mode: %s)" f
   | Ast.Socket (addr, port) -> Printf.sprintf " '%s' %d" addr port)
   |> Printf.sprintf "%s%s" text
 

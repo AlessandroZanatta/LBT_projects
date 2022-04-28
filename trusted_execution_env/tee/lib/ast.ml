@@ -9,7 +9,7 @@ type 'e typ =
   (* We use a dummy type for closures type labels, and one for actual internal logic *)
   | TClosure
   | TClosure' of (ide * 'e typ) list * 'e typ * 'e * 'e typ Env.static_env
-  | TOpeanable
+  | TOpenable
 
 (* Type declaration for operations on integers *)
 type ops =
@@ -28,13 +28,15 @@ type ops =
   | And
 
 (* Openable resources *)
-type openable = File of string | Socket of string * int
+type access_mode = O_RDONLY | O_WRONLY | O_RDWR
+type openable = File of string * access_mode | Socket of string * int
 
 (* Supported expressions *)
 type exp =
   | EInt of int
   | EBool of bool
   | EString of string
+  | EOpenable of openable
   | Den of ide * Env.visibility
   | Op of ops * exp * exp
   | If of exp * exp * exp
@@ -42,10 +44,10 @@ type exp =
   | Fun of (ide * exp typ) list * exp typ * exp
   | Call of exp * exp list
   | Execute of exp * exp typ
-  | Open of openable
-  | Close of openable
-  | Read of openable
-  | Write of openable
+  | Open of exp
+  | Close of exp
+  | Read of exp
+  | Write of exp * exp
 (*
  * Note: we do not support Send or Recv directly.
  * Instead, we consider different types of objects on which Read and Write can be
@@ -58,5 +60,5 @@ type value =
   | Bool of bool
   | String of string
   | Closure of ((ide * exp typ) list * exp * value Env.t)
-  | OFile of string
+  | OFile of string * access_mode
   | OSocket of string * int
