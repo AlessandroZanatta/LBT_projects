@@ -96,18 +96,28 @@ and typeof_execute env e t =
   if typeof env e = t then t
   else typecheck_error "Execution of mobile code type mismatch"
 
+(* [typeof_open env res] checks that [env |- res : t] and t = TOpenable.
+   Raises: [TypecheckError] if above typechecking fails. *)
 and typeof_open env res =
   if typeof env res = TOpenable then TOpenable
   else typecheck_error "Can only open a file or a socket"
 
+(* [typeof_close env res] checks that [env |- res : t] and t = TOpenable.
+   Raises: [TypecheckError] if above typechecking fails. *)
 and typeof_close env res =
   if typeof env res = TOpenable then TBool
   else typecheck_error "Can only close a file or a socket"
 
+(* [typeof_read env res] checks that [env |- res : t] and t = TOpenable.
+   Raises: [TypecheckError] if above typechecking fails. *)
 and typeof_read env res =
   if typeof env res = TOpenable then TString
   else typecheck_error "Can only read from a file or a socket"
 
+(* [typeof_write env res e] checks that:
+   - [env |- res : t] and t = TOpenable
+   - [env |- e : t'] and t' = TString
+   Raises: [TypecheckError] if above typechecking fails. *)
 and typeof_write env res e =
   if typeof env res = TOpenable && typeof env e = TString then TString
   else typecheck_error "Can only write strings to a file or a socket "

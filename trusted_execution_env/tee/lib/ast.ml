@@ -51,7 +51,9 @@ type exp =
 (*
  * Note: we do not support Send or Recv directly.
  * Instead, we consider different types of objects on which Read and Write can be
- * called on, including Sockets. Hence, a write on a socket corresponds to a Send operation.   
+ * called on, including Sockets. Hence, a write on a socket corresponds to a Send operation.
+ * Note: we also assume that open, close, read and write are perfect: they always work, even
+ * if the file/socket was not opened (simplifying assumption)
  *)
 
 (* Runtime values are ints, booleans, closures, open files and sockets, and strings *)

@@ -23,6 +23,6 @@ let sprintf_openable text openable =
   |> Printf.sprintf "%s%s" text
 
 (* Clone of an automata. As we work with refs, we need use fresh automata
- * when running examples/tests. *)
+   when running examples/tests. *)
 let copy_automaton automaton =
   { transition = automaton.transition; current_state = automaton.current_state }

@@ -5,21 +5,22 @@ open Exception
 
 (* 
  * Policy used by the eval. The active policy is enforced (e.g. in an execute).
- * The sandbox policy is the policy that we want to enforce when executing mobile code.
+ * The sandbox policy is the policy that we want to enforce when executing mobile code ("dormient" policy).
  *)
 type policy = {
   active : security_automaton ref option;
   sandbox : security_automaton;
 }
 
-(* 
- * Checks if a policy has to be enforced, and applies 
- * the transition with the given security event.
- * Returns nothing, side-effect only
- *)
+(* [check_policy sec_aut sec_event] feeds [sec_aut] the new event, hence causing a transition in [sec_aut].
+   Raises: [RuntimeError] if [sec_aut] ends up in the Failure state. *)
 let check_policy sec_aut sec_event =
   if Option.is_some sec_aut.active then Option.get sec_aut.active ==> sec_event
 
+(* [eval env sec_aut expr] evalues [expr] in the given enviroment [env],
+   possibly enforcing [sec_aut] in the case of security relevant actions.
+   Raises: [RuntimeError] if dividing by zero, or when a type mismatch occurs
+   (i.e. the typechecker returned a false positive). *)
 let rec eval env sec_aut expr =
   match expr with
   | EInt n -> Int n
@@ -38,6 +39,7 @@ let rec eval env sec_aut expr =
   | Read res -> eval_read env sec_aut res
   | Write (res, e) -> eval_write env sec_aut res e
 
+(* [eval_eopenable res] returns an openable based on [res] value *)
 and eval_eopenable = function
   | File (f, am) -> OFile (f, am)
   | Socket (ip, port) -> OSocket (ip, port)
@@ -82,7 +84,10 @@ and eval_op env sec_aut op e1 e2 =
   | And, Bool b1, Bool b2 -> Bool (b1 && b2)
   | _ -> runtime_error "Invalid expression"
 
-(* Functions support multiple arguments *)
+(* [eval_call env sec_aut f args] evaluates the body of [f], if [f] in [env] was found of type Closure.
+   To evaluate [f] body, [args] are evaluated. Then, the body of [f] is evaluated in the saved
+   environment of [f], augmented with the binding of (params * [args]).
+   Raises: [RuntimeError] if [f] was not a closure, or the number of arguments of [f] was mismatched. *)
 and eval_call env sec_aut f args =
   match eval env sec_aut f with
   | Closure (params, body, fun_env) ->
@@ -100,11 +105,9 @@ and eval_call env sec_aut f args =
           sec_aut body
   | _ -> runtime_error "Call first argument is not a closure"
 
-(*
- * Execute is used to run mobile code.
- * The public enviroment is kept when evaluating the code, while the
- * private enviroment is emptied.
- *)
+(* [eval_execute env sec_aut code] evaluates [code] using the public variables only in [env]
+   and enforcing the policy defined in [sec_aut].
+   Nested executes are supported and secured by using the same policy with the same current state. *)
 and eval_execute env sec_aut code =
   let execute_env = retain_public env in
   match sec_aut.active with
@@ -130,12 +133,15 @@ and eval_execute env sec_aut code =
    *)
   | Some _ -> eval execute_env sec_aut code
 
-(*
- * Open, close, read and write operations are considered security events.
+(* Open, close, read and write operations are considered security events.
  * As such, if a policy is being enforced, we first check that the transition
  * of the automata leads to a valid state.
- * Note: these operations are just stubs.
- *)
+ * Note: these operations are just stubs: we assume that open, close, read and write are perfect: they 
+ * always work, even if the file/socket was not opened (simplifying assumption). *)
+
+(* [eval_open env sec_aut res] checks that the evalution of [res] is either an OFile or an OSocket.
+   If so, checks that the policy enforced by [sec_aut] is still valid (if any), and returns the opened resource.
+   Raises: [RuntimeError] in the case of type mismatch, or when the action violates the policy of [sec_aut]. *)
 and eval_open env sec_aut res =
   let value = eval env sec_aut res in
   let res =
@@ -148,6 +154,9 @@ and eval_open env sec_aut res =
   (* Do open *)
   value
 
+(* [eval_close env sec_aut res] checks that the evalution of [res] is either an OFile or an OSocket.
+   If so, checks that the policy enforced by [sec_aut] is still valid (if any), and returns Bool true.
+   Raises: [RuntimeError] in the case of type mismatch, or when the action violates the policy of [sec_aut]. *)
 and eval_close env sec_aut res =
   let res =
     match eval env sec_aut res with
@@ -158,6 +167,10 @@ and eval_close env sec_aut res =
   Automaton.EClose res |> check_policy sec_aut;
   Bool true
 
+(* [eval_read env sec_aut res] checks that the evalution of [res] is either an OFile with valid permissions or an OSocket.
+   If so, checks that the policy enforced by [sec_aut] is still valid (if any), and returns a generic string.
+   Raises: [RuntimeError] in the case of type mismatch, or if permissions are incorrect, or when the
+   action violates the policy of [sec_aut]. *)
 and eval_read env sec_aut res =
   let res =
     match eval env sec_aut res with
@@ -171,6 +184,11 @@ and eval_read env sec_aut res =
   Automaton.ERead res |> check_policy sec_aut;
   String (Utils.sprintf_openable "Read from" res)
 
+(* [eval_writeenv sec_aut res e] checks that the evalution of [res] is either an OFile with valid permissions
+   or an OSocket, and that [e] evaluates to a String.
+   If so, checks that the policy enforced by [sec_aut] is still valid (if any), and returns a generic string.
+   Raises: [RuntimeError] in the case of type mismatch, or if permissions are incorrect, or when the
+   action violates the policy of [sec_aut]. *)
 and eval_write env sec_aut res e =
   let res =
     match eval env sec_aut res with

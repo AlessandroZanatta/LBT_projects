@@ -8,12 +8,9 @@ type 'v t = (string * ('v * visibility)) list
 (* Static environment used for typechecking *)
 type 'v static_env = (string * ('v * visibility)) list
 
-(* 
- * Lookup searches in the private enviorment first. This is to cope with 
- * the fact that functions arguments are assumed to be private, but this would
- * erranously return the incorrect binding if a public variable with the same name existed
- * This is needed as we miss clearly separated scopes in our language.
- *)
+(* [lookup env ide vis] searches for a binding with identifier [ide]
+   and visibility [vis] in [env].
+   Raises: [RuntimeError] if a binding with the correct visibility is not found. *)
 let rec lookup env ide vis =
   match List.assoc_opt ide env with
   | Some (v, vis') ->
@@ -21,10 +18,10 @@ let rec lookup env ide vis =
       else Printf.sprintf "Unbound variable: %s" ide |> runtime_error
   | None -> Printf.sprintf "Unbound variable: %s" ide |> runtime_error
 
+(* [retain_public env] removes any non-public binding in [env] *)
 let retain_public env = List.filter (fun (_, (_, vis)) -> vis = Public) env
-let empty_env = []
 
-(* Binds the variable in the correct list based on its visibility *)
+(* [bind env (id, value, vis)] binds the given triple or, if present, substitutes it, in [env] *)
 let bind env (id, value, vis) =
   if List.mem_assoc id env then (id, (value, vis)) :: List.remove_assoc id env
   else (id, (value, vis)) :: env
