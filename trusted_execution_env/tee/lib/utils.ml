@@ -10,15 +10,10 @@ let rec combine3 l1 l2 l3 =
   | h1 :: t1, h2 :: t2, h3 :: t3 -> (h1, h2, h3) :: combine3 t1 t2 t3
   | _ -> runtime_error "Invalid combine3, mismatch of list lengths"
 
-(* Utility to print an opeanble object in a pretty way. *)
+(* Utility to pretty print an opeanble . *)
 let sprintf_openable text openable =
   (match openable with
-  | Ast.File (f, access_mode) ->
-      (match access_mode with
-      | Ast.O_RDONLY -> "O_RDONLY"
-      | Ast.O_WRONLY -> "O_WRONLY"
-      | Ast.O_RDWR -> "O_RDWR")
-      |> Printf.sprintf " '%s' (mode: %s)" f
+  | Ast.File f -> Printf.sprintf "'%s'" f
   | Ast.Socket (addr, port) -> Printf.sprintf " '%s' %d" addr port)
   |> Printf.sprintf "%s%s" text
 
@@ -26,3 +21,15 @@ let sprintf_openable text openable =
    when running examples/tests. *)
 let copy_automaton automaton =
   { transition = automaton.transition; current_state = automaton.current_state }
+
+(* Utility to pretty print an permissions set. *)
+let sprintf_permissions perms =
+  let rec aux acc = function
+    | [] -> acc ^ "]"
+    | h :: t ->
+        let s =
+          match h with Ast.Readable -> "Readable" | Ast.Sendable -> "Sendable"
+        in
+        aux (acc ^ s ^ " ") t
+  in
+  aux "[ " (Ast.PermSet.elements perms)

@@ -10,10 +10,10 @@ let rec typeof env = function
   | EBool _ -> TBool
   | EString _ -> TString
   | EOpenable _ -> TOpenable
-  | Fun (args, ret_type, body) -> TClosure' (args, ret_type, body, env)
-  | Den (x, vis) -> lookup env x vis
+  | Fun (args, ret_type, body, _) -> TClosure' (args, ret_type, body, env)
+  | Den x -> lookup_tc env x
   | If (e1, e2, e3) -> typeof_if env e1 e2 e3
-  | Let (id, t, vis, e1, e2) -> typeof_let env id t vis e1 e2
+  | Let (id, t, e1, e2) -> typeof_let env id t e1 e2
   | Op (op, e1, e2) -> typeof_binop env op e1 e2
   | Call (f, args) -> typeof_call env f args
   | Execute (e, t) -> typeof_execute env e t
@@ -36,11 +36,11 @@ and typeof_if env e1 e2 e3 =
 
 (* [typeof_let env id t e1 e2] checks that:
    - [env |- e1 : t'] and t = t' or (t = TClosure and t' = TClosure')
-   and returns t2, where t2 is the result of [(id, t)::env |- e2 : t1].
-   Raises: [TypecheckError] if the type of e1 mismatches with its *)
-and typeof_let env id t vis e1 e2 =
+   and returns t2, where t2 is the result of [env,(id, t) |- e2 : t1].
+   Raises: [TypecheckError] if the type of e1 mismatches with [t] *)
+and typeof_let env id t e1 e2 =
   let t' = typeof env e1 in
-  if t' = t || check_closure t t' then typeof (bind env (id, t', vis)) e2
+  if t = t' || check_closure t t' then typeof (bind_tc env (id, t')) e2
   else typecheck_error "Let assignment typecheck failed"
 
 and check_closure t t' =
@@ -79,9 +79,7 @@ and typeof_call env f args =
       let args_types = List.map (typeof env) args in
       if types = args_types then
         let fun_env' =
-          Utils.combine3 ides types
-            (List.init (List.length ides) (fun _ -> Env.Private))
-          |> List.fold_left bind fun_env
+          List.combine ides types |> List.fold_left bind_tc fun_env
         in
         if typeof fun_env' body = ret_type then ret_type
         else typecheck_error "Function return value mismatch"
@@ -93,7 +91,8 @@ and typeof_call env f args =
 (* [typeof_execute env e t] checks that the return type of [e] matches [t].
    Raises: [TypecheckError] if typecheck fails. *)
 and typeof_execute env e t =
-  if typeof env e = t then t
+  let t' = typeof env e in
+  if t = t' || check_closure t t' then t'
   else typecheck_error "Execution of mobile code type mismatch"
 
 (* [typeof_open env res] checks that [env |- res : t] and t = TOpenable.

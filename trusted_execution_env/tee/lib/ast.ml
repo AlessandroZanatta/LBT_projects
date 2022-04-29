@@ -11,6 +11,19 @@ type 'e typ =
   | TClosure' of (ide * 'e typ) list * 'e typ * 'e * 'e typ Env.static_env
   | TOpenable
 
+(* Permissions available for runtime values *)
+type permission = Readable | Sendable
+
+(* To handle permissions better, we make use of sets *)
+module PermSet = Set.Make (struct
+  type t = permission
+
+  let compare = compare
+end)
+
+(* Openable resources *)
+type openable = File of string | Socket of string * int
+
 (* Type declaration for operations on integers *)
 type ops =
   | Sum
@@ -27,21 +40,17 @@ type ops =
   | Or
   | And
 
-(* Openable resources *)
-type access_mode = O_RDONLY | O_WRONLY | O_RDWR
-type openable = File of string * access_mode | Socket of string * int
-
 (* Supported expressions *)
 type exp =
-  | EInt of int
-  | EBool of bool
-  | EString of string
-  | EOpenable of openable
-  | Den of ide * Env.visibility
+  | EInt of int * permission list
+  | EBool of bool * permission list
+  | EString of string * permission list
+  | EOpenable of openable * permission list
+  | Fun of (ide * exp typ) list * exp typ * exp * permission list
+  | Den of ide
   | Op of ops * exp * exp
   | If of exp * exp * exp
-  | Let of ide * exp typ * Env.visibility * exp * exp
-  | Fun of (ide * exp typ) list * exp typ * exp
+  | Let of ide * exp typ * exp * exp
   | Call of exp * exp list
   | Execute of exp * exp typ
   | Open of exp
@@ -56,11 +65,15 @@ type exp =
  * if the file/socket was not opened (simplifying assumption)
  *)
 
+(* Secure runtime values are actually used in the interpreter. These carry around their permissions *)
+type 'v secure_runtime_value = 'v * PermSet.t
+
 (* Runtime values are ints, booleans, closures, open files and sockets, and strings *)
-type value =
+type runtime_value =
   | Int of int
   | Bool of bool
   | String of string
-  | Closure of ((ide * exp typ) list * exp * value Env.t)
-  | OFile of string * access_mode
+  | Closure of
+      (ide * exp typ) list * exp * runtime_value secure_runtime_value Env.env
+  | OFile of string
   | OSocket of string * int
