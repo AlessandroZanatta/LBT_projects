@@ -1,35 +1,98 @@
 \section{Introduction}
-At the beginning of the homework, we decided to look up papers regarding the secure execution of mobile code. The most relevant one was \cite{history-based}, but we did not find it the best-suited approach to solve our problem.
+At the beginning of the homework, we decided to look up papers regarding the secure execution of mobile code. The most relevant one regarded history-based access control \cite{history-based}, but we did not find it the best-suited approach to solve our problem.
 
-We have decided to use an approach seen in the lectures, security automata \cite{erlingsson2000sasi,10.1145/353323.353382}, and visibility specifiers.
+We have decided to use an approach seen in the lectures, security automata \cite{erlingsson2000sasi,10.1145/353323.353382}, and permissions specifiers.
 
-\section{Securing top-level code}
-To avoid the disclosure of ``secret'' variables and functions (i.e. code that we do not want the executed mobile code to be able to access) we have introduced visibility specifiers for identifiers.
+\section{Interpreter}
+We have modeled our interpreter starting from the Abstract Syntax Tree, which is defined as following:
+\begin{lstlisting}
+type exp =
+  | EInt of int * permission list
+  | EBool of bool * permission list
+  | EString of string * permission list
+  | EOpenable of openable * permission list
+  | Fun of (ide * exp typ) list * exp typ * exp * permission list
+  | Den of ide
+  | Op of ops * exp * exp
+  | If of exp * exp * exp
+  | Let of ide * exp typ * exp * exp
+  | Call of exp * exp list
+  | Execute of exp * exp typ
+  | Open of exp
+  | Close of exp
+  | Read of exp
+  | Write of exp * exp
+\end{lstlisting}
+where \lstinline{ops} are the possible operations, defined as:
+\begin{lstlisting}
+type ops = Sum | Times | Minus | Div | Mod | Equal | Lesser | Greater | Lesseq | Greateq | Diff | Or | And
+\end{lstlisting}
+We have considered the following runtime values:
+\begin{lstlisting}
+type runtime_value =
+  | Int of int
+  | Bool of bool
+  | String of string
+  | Closure of (ide * exp typ) list * exp * runtime_value secure_runtime_value Env.env
+  | OFile of string
+  | OSocket of string * int
+\end{lstlisting}
+\newpage\noindent
+Finally, the environment is defined as:
+\begin{lstlisting}
+type 'v env = { local : (string * 'v) list; global : (string * 'v) list }
+\end{lstlisting}
+Please refer to \cref{sec:stlc} for further explanation about the reason behind this choice.
 
-In particular, we have devised to use a \lstinline{Private} or \lstinline{Public} specifier when using the \lstinline{Let} construct. Notice that, while in the abstract syntax tree the specifier is always required, when parsing the program from file it would be possible to define every variable as \lstinline{Private} by default, following the least privilege principle.
+The following are the most noticeable aspects of our implementation:
+\begin{itemize}
+    \item We have added some security relevant operations, such as \lstinline{Open}, \lstinline{Close}, \lstinline{Read} and \lstinline{Write}, which will be secured in mobile code with the use of security automata (see \cref{sec:spe}). Notice that, as the resource can either be a file or a socket, a \lstinline{Write(Socket("<IP>", <port>), s)} call has the same behavior of a \lstinline{Send(s)} call.
+    \item The expressions that are directly transformed to runtime values, that is, \lstinline{EInt}, \lstinline{EBool}, \lstinline{EString}, \lstinline{EOpenable} and \lstinline{Fun}, also contain a list of permissions (see \cref{sec:stlc}).
+    \item In our interpreter we have also decided to implement static type checking. Please, refer to the comments in the implementation for further information.
+    \item When evaluated, function return a closure. Moreover, note that we support functions with an arbitrary number of arguments.
+\end{itemize}
+
+In the source code (\lstinline{bin/main.ml}, specifically), a wide variety of examples can be found, together with a short description and the expected result.
+
+\section{Security policies enforcement}
+\label{sec:spe}
+To enforce a wide range of security policies, we have devised to use security automata \cite{erlingsson2000sasi,10.1145/353323.353382}.
+
+\subsection{Implementation}
+The security automata have been reduced to two state variables in a record: the current state, and the transition function. The state of the automata is either \lstinline{State string} or \lstinline{Failure}, where the latter is reached upon a security policy violation.
+
+We have then identified a set of security relevant operations. For instance, we consider as relevant actions: \lstinline{Open res}, \lstinline{Read res}, \lstinline{Write(res, s)}, and \lstinline{Close res} operations.
+We also assumed that these operations are carried on correctly by the programmer (e.g. a socket is opened before writing to it). This assumption is coherent with the fact that we consider the operation from a semantic point of view, rather than from a functional perspective.
+
+Before a security event is executed, the automaton transitions to the new state. If the new state is the \lstinline{Failure} state, then we abort execution. Notice that, to ensure that the automaton works correctly even with function calls and nested \lstinline{Execute} calls, it has been passed as a reference.
+
+The automaton is active only when executing mobile code. To this end, we created a simple data structure holding an active automaton reference and the automaton to be used in the secure sandbox.
+We have also ensured that nested execute calls respect our policy by keeping the automata in the current state. This allows to avoid attacks in which nested mobile code execution is abused to bypass the policy.
+
+\section{Confidentiality in top-level code}
+\label{sec:stlc}
+To avoid leakage of confidential information, we have introduced two permissions: \lstinline{Readable} and \lstinline{Sendable}.
+
+These permissions are bound to runtime values. We chose to bind permissions to runtime values, instead of binding them to variables, as this allows to avoid dangerous scenarios, such as:
+\begin{lstlisting}
+    Let("my_pin", TInt, EInt(1234, []), 
+        Let("my_copy_of_pin", TInt, Den "my_pin", 
+            Execute(Send(Den "my_copy_of_pin"))))
+\end{lstlisting}
+Notice that the empty list in \lstinline{EInt(1234, [])} indicates no permissions. A careless programmer could set less strict permissions on \lstinline{"my_copy_of_pin"}, if allowed. This mechanism prevents such (possibly malicious) errors.
 
 \subsection{Implementation}
 
 \paragraph{Modifications to run-time data structures}
-We split the environment (previously defined as a single list of identifier-value pairs) in two. This allows us to keep the list of private variables in a separate data structure from the list of public variables.
-
-Notice that we assume that functions parameters are private, and when searching for a binding we need to consider first the private part of the environment.
+We have made two noticeable changes:
+\begin{enumerate}
+    \item As already mentioned, runtime values are augmented with a set of permissions, which are then defined as:
+          \begin{lstlisting}
+    type secure_runtime_value = runtime_value * PermSet.t
+    \end{lstlisting}
+    \item Then, we have split the environment in two parts (i.e. lists), a \lstinline{local} environment and a \lstinline{global} one. Whenever executing mobile code, we empty the current local environment and prepend it to the global one. This allows for nested mobile code executions to also use permissions as in top-level code.
+\end{enumerate}
 
 \paragraph{Enforcement}
-The \lstinline{Let} construct, as aforementioned, contains a visibility specifier. This specifier is used to bind the identifier in the correct environment.
-To enforce the confidentiality of the private environment, in the \lstinline{Execute} calls, we empty the private environment so that it is impossible for the mobile code to access non-public variables.
+To enforce this mechanism, whenever we execute mobile code we also check permissions, if relevant. For example, before executing a \lstinline{Write(res, s)} operation, we check that \lstinline{s} has the \lstinline{Readable} and \lstinline{Sendable} permissions. If a check fails, we immediately abort execution.
 
-
-\section{Security policies enforcement}
-To enforce a wide range of security policies, we have devised to use security automata \cite{erlingsson2000sasi,10.1145/353323.353382}.
-
-\subsection{Implementation}
-The security automata have been reduced to two state variables: the current state, and the transition function. The state of the automata is either \lstinline{State string} or \lstinline{Failure}, where the latter is reached upon a security policy violation.
-
-We have then identified a set of security relevant operations. For instance, we consider as relevant actions: \lstinline{Open res}, \lstinline{Read res}, \lstinline{Write res}, and \lstinline{Close res} operations. Notice that the resource can either be a file or a socket, thus a \lstinline{Write Socket("<IP>", <port>)} has the same behavior of a \lstinline{Send} call.
-We also assumed that these operations are carried on correctly by the programmer (e.g. a socket is opened before writing to it). This assumption is coherent with the fact that we consider the operation from a semantic point of view, rather than from a functional perspective.
-
-Before a security event is executed, the automaton transitions to the new state. If the new state is the \lstinline{Failure} state, then we abort execution. Notice that to ensure that the automaton works correctly even with function calls it has been defined as a reference.
-
-The automaton is active only when executing mobile code. To this end, we created a simple data structure holding an active automaton and automaton to be used in the secure sandbox.
-We have also ensured that nested execute calls respect our policy. This allows to avoid attacks in which nested mobile code execution is abused to bypass the policy.

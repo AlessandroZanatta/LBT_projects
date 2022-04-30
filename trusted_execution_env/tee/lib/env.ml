@@ -13,7 +13,7 @@ let empty_env = { local = []; global = [] }
 
 (* [lookup env ide] searches for a binding with identifier [ide] in [env].
    Raises: [RuntimeError] if the binding does not exist. *)
-let rec lookup env ide =
+let lookup env ide =
   match List.assoc_opt ide env.local with
   | Some v -> (v, Local)
   | None -> (

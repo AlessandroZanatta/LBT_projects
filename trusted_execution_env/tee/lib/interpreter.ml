@@ -220,7 +220,7 @@ and eval_write env sec_aut res e =
   Automaton.EWrite res |> check_policy sec_aut;
   (* Do write *)
   ( String (Utils.sprintf_openable (Printf.sprintf "Wrote '%s' to" content) res),
-    PermSet.empty )
+    PermSet.inter p1 p2 )
 
 (* [check_permissions sec_aut required_perms v] if we are in an execute,
    we check that [required_perms] is a subset of the permissions defined on [v].
@@ -229,7 +229,7 @@ and eval_write env sec_aut res e =
 and check_permissions sec_aut required_perms v =
   if Option.is_none sec_aut.active then v
   else
-    let res, p = v in
+    let _, p = v in
     if PermSet.subset (PermSet.of_list required_perms) p then v
     else
       Printf.sprintf "Invalid access. Expected permissions: %s. Got: %s"

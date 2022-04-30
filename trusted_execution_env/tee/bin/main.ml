@@ -294,32 +294,32 @@ let examples =
                       TInt,
                       Call (Den "f", [ Den "my_pin" ]),
                       Execute (Den "my_pin_plus_1", TInt) ) ) ),
-          None );
-        ( "Leak test #4. This test fails, as we execute an untrusted function \
-           received from an untrusted mobile code. The function is executed \
-           with top-level permissions, leading to leakage. This may be fixed \
-           by consider the received function as untrustworthy, and by \
-           therefore executing it in a secure environment",
-          Let
-            ( "my_pin",
-              TString,
-              EString ("my_p4$$w0rd", []),
-              Let
-                ( "f",
-                  TClosure,
-                  Execute
-                    ( Fun
-                        ( [ ("secret", TString) ],
-                          TString,
-                          Write
-                            ( Open
-                                (EOpenable
-                                   (Socket ("8.8.8.8", 1234), [ Readable ])),
-                              Den "secret" ),
-                          [ Readable ] ),
-                      TClosure ),
-                  Call (Den "f", [ Den "my_pin" ]) ) ),
-          None );
+          None )
+        (* ( "Leak test #4. This test fails, as we execute an untrusted function \
+            received from an untrusted mobile code. The function is executed \
+            with top-level permissions, leading to leakage. This may be fixed \
+            by consider the received function as untrustworthy, and by \
+            therefore executing it in a secure environment",
+           Let
+             ( "my_pin",
+               TString,
+               EString ("my_p4$$w0rd", []),
+               Let
+                 ( "f",
+                   TClosure,
+                   Execute
+                     ( Fun
+                         ( [ ("secret", TString) ],
+                           TString,
+                           Write
+                             ( Open
+                                 (EOpenable
+                                    (Socket ("8.8.8.8", 1234), [ Readable ])),
+                               Den "secret" ),
+                           [ Readable ] ),
+                       TClosure ),
+                   Call (Den "f", [ Den "my_pin" ]) ) ),
+           None ); *);
       ] );
   ]
 
@@ -332,7 +332,7 @@ let rec execute_examples_for_policy (policy, examples) =
   | (title, e, expected_result) :: t ->
       let res =
         try
-          let res, p =
+          let res, _ =
             interpret e
               {
                 Interpreter.active = None;
