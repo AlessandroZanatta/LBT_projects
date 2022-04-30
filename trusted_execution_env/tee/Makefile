@@ -1,0 +1,3 @@
+
+run:
+	dune exec main
